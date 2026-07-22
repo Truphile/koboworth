@@ -1,0 +1,65 @@
+import asyncio
+from logging.config import fileConfig
+
+from sqlalchemy import pool
+from sqlalchemy.engine import Connection
+from sqlalchemy.ext.asyncio import async_engine_from_config
+
+from alembic import context
+
+from app.core.config import settings
+from app.shared.db.base import Base
+from app.modules.worker.models.worker import InformalWorker
+from app.modules.collector.models.collector import AjoCollector
+from app.modules.collector.models.group import AjoGroup, GroupMembership
+from app.modules.worker.models.contribution import Contribution
+from app.modules.scoring.models.trust_score import TrustScore
+from app.modules.passport.models.trust_passport import TrustPassport
+from app.modules.lender.models.lender import Lender
+from app.modules.lender.models.loan import Loan
+from app.modules.consent.models.consent_log import ConsentLog
+from app.modules.admin.models.audit_log import AuditLog
+from app.modules.admin.models.complaint import Complaint
+
+config = context.config
+config.set_main_option("sqlalchemy.url", settings.async_database_url)
+
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
+target_metadata = Base.metadata
+
+def run_migrations_offline() -> None:
+    url = config.get_main_option("sqlalchemy.url")
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+    )
+
+    with context.begin_transaction():
+        context.run_migrations()
+
+def do_run_migrations(connection: Connection) -> None:
+    context.configure(connection=connection, target_metadata=target_metadata)
+    with context.begin_transaction():
+        context.run_migrations()
+
+async def run_async_migrations() -> None:
+    connectable = async_engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
+    async with connectable.connect() as connection:
+        await connection.run_sync(do_run_migrations)
+    await connectable.dispose()
+
+def run_migrations_online() -> None:
+    asyncio.run(run_async_migrations())
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()

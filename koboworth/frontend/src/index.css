@@ -1,0 +1,8 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+html, body {
+  /* Scale up the base font size to 18px (a 12.5% increase over the default 16px).
+     Using !important to ensure no browser defaults or tailwind resets override it. */
+  font-size: 18px !important;
+}
